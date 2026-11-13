@@ -13,6 +13,14 @@ $tubes = @(
   @{ x = 337; y = 86; w = 105; h = 244; img = "nx_d"; a = 224; expr = "([MINUTE] % 10)";       prev = "($Mp % 10)" }
 )
 $ambient = $tubes | ForEach-Object { $a = $_.Clone(); $a.img = "nx_a"; $a.prev = $null; $a.a = 255; $a }
+# lit sprites carry a 17 px pad on every side (NixieRender.Pad) so the halo can spill through the glass
+foreach ($t in $tubes) { $t.x -= 17; $t.y -= 17; $t.w += 34; $t.h += 34 }
+# tilt parallax: layers at different depths slide by different amounts as the wrist rolls
+$U = 'clamp([ACCELEROMETER_ANGLE_X] / 30, -1, 1)'
+function Slide($name, $res, $px) {
+  $e = [System.Security.SecurityElement]::Escape("$px * $U")
+  "    <PartImage name=`"$name`" x=`"0`" y=`"0`" width=`"466`" height=`"466`" alpha=`"255`">`n      <Variant mode=`"AMBIENT`" target=`"alpha`" value=`"0`"/>`n      <Transform target=`"x`" value=`"$e`"/>`n      <Image resource=`"$res`"/>`n    </PartImage>`n"
+}
 function Digits($list) {
   $sb = ""
   foreach ($t in $list) { for ($k = 0; $k -le 9; $k++) {
@@ -34,6 +42,13 @@ $xml = @"
     <PartImage name="bg" x="0" y="0" width="466" height="466" alpha="255">
       <Variant mode="AMBIENT" target="alpha" value="0"/>
       <Image resource="nx_bg"/>
+    </PartImage>
+
+    <!-- far half of the anode cage (slides against the digits), then the cathode stack, rods and mica in the digit plane -->
+$(Slide "backMesh" "nx_back" -4)
+    <PartImage name="inner" x="0" y="0" width="466" height="466" alpha="255">
+      <Variant mode="AMBIENT" target="alpha" value="0"/>
+      <Image resource="nx_inner"/>
     </PartImage>
 
     <!-- hours + minutes: lit cathodes with full glow (interactive only) -->
@@ -72,12 +87,14 @@ $warm      </SequenceImages>
       </Group>
     </Group>
 
-    <!-- glass, front mesh, highlights -->
+    <!-- near half of the cage, the glass itself, then the reflections that slide across it -->
+$(Slide "frontMesh" "nx_mesh" 2)
     <PartImage name="front" x="0" y="0" width="466" height="466" alpha="255">
       <Variant mode="AMBIENT" target="alpha" value="0"/>
       <Image resource="nx_front"/>
     </PartImage>
 
+$(Slide "highlights" "nx_hl" 5)
     <!-- battery percent engraved into the metal under the bar tube -->
     <Group name="engraved" x="0" y="0" width="466" height="466" alpha="255">
       <Variant mode="AMBIENT" target="alpha" value="0"/>

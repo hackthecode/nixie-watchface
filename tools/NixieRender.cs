@@ -65,9 +65,9 @@ public static class NixieRender
     static Bitmap GlowBitmap(int w, int h, float[] wire, float scale, float edgeFade, float[] extra = null)
     {
         float[][] L = {
-            new float[]{0, 1.00f,0.86f,0.58f, 1.00f},
-            new float[]{1.5f, 1.00f,0.46f,0.08f, 1.10f},
-            new float[]{4, 1.00f,0.35f,0.03f, 0.78f},
+            new float[]{0, 1.00f,0.80f,0.48f, 0.95f},
+            new float[]{1.5f, 1.00f,0.44f,0.07f, 0.62f},
+            new float[]{4, 1.00f,0.35f,0.03f, 0.66f},
             new float[]{11, 1.00f,0.28f,0.02f, 0.72f},
             new float[]{26, 0.95f,0.22f,0.01f, 0.44f},
             new float[]{7, 0.30f,0.16f,0.80f, 0.10f},   // faint violet haze of the discharge
@@ -120,34 +120,47 @@ public static class NixieRender
         return Digit(c, ox + (42 + (depth - 0.5f) * 3.0f + jx) * k, oy + (112 - (depth - 0.5f) * 1.6f + jy) * k, (104 + 9 * depth) * k, 1f);
     }
 
-    // ------------------------------------------------------------ lit digit sprite (box-sized)
+    // ------------------------------------------------------------ lit digit sprite
+    // The sprite is larger than the tube box by Pad pixels on every side, so the halo can spill through the glass.
+    public static int Pad(float k) { return (int)Math.Round(14 * k); }
     public static Bitmap LitDigit(char c, float k)
     {
-        int w = (int)Math.Ceiling(84 * k), h = (int)Math.Ceiling(196 * k);
-        var mask = MaskOf(w, h, g => g.FillPath(Brushes.White, Cathode(c, 0, 0, k)));
-        var wire = k > 0.7f ? Erode(mask, w, h, 3) : Erode(mask, w, h, 1);
-        wire = Blur(wire, w, h, 1);
-        for (int i = 0; i < wire.Length; i++) wire[i] = Math.Min(1, wire[i] * 2.2f);
+        int m = Pad(k);
+        int w = (int)Math.Ceiling(84 * k) + 2 * m, h = (int)Math.Ceiling(196 * k) + 2 * m;
+        var mask = MaskOf(w, h, g => g.FillPath(Brushes.White, Cathode(c, m, m, k)));
+        // The gas glows in a sheath around the metal: the lit shape is the whole stroke, with a thin darker core where the cathode itself sits.
+        var sheath = Blur(Erode(mask, w, h, 3), w, h, 1);
+        var core = Blur(Erode(mask, w, h, 5), w, h, 1);
+        var wire = new float[w * h];
+        for (int i = 0; i < wire.Length; i++) wire[i] = Math.Min(1, sheath[i] * 2.2f) * (1 - 0.45f * Math.Min(1, core[i] * 3f));
         // unlit cathodes in front of this one cross the glow as thin dark wires
         int me = Order.IndexOf(c);
-        var front = MaskOf(w, h, g => { using (var pen = new Pen(Color.White, 0.8f * k)) { pen.LineJoin = LineJoin.Round; for (int j = me + 1; j < Order.Length; j++) g.DrawPath(pen, Cathode(Order[j], 0, 0, k)); } });
+        var front = MaskOf(w, h, g => { using (var pen = new Pen(Color.White, 0.8f * k)) { pen.LineJoin = LineJoin.Round; for (int j = me + 1; j < Order.Length; j++) g.DrawPath(pen, Cathode(Order[j], m, m, k)); } });
         for (int i = 0; i < wire.Length; i++) wire[i] *= 1 - 0.30f * front[i];
+        var extra = new float[w * h];
         // reflections of the lit cathode in the curved glass walls: squeezed, mirrored copies near each side
-        var refl = new float[w * h];
-        float[] wallX = { 13f * k, 71f * k }; float half = 4.5f * k, squeeze = 6.5f;
+        float[] wallX = { m + 13f * k, m + 71f * k }; float half = 4.5f * k, squeeze = 6.5f;
         for (int y = 0; y < h; y++) foreach (var xr in wallX)
             for (int x = (int)(xr - half); x <= (int)(xr + half); x++)
             {
                 if (x < 0 || x >= w) continue;
-                float t = (x - xr) / half; int sx = (int)Math.Round(42 * k - (x - xr) * squeeze);
-                refl[y * w + x] += At(wire, w, h, sx, y) * (1 - t * t);
+                float t = (x - xr) / half; int sx = (int)Math.Round(m + 42 * k - (x - xr) * squeeze);
+                extra[y * w + x] += At(wire, w, h, sx, y) * (1 - t * t);
             }
-        refl = Blur(refl, w, h, 2);
-        for (int i = 0; i < refl.Length; i++) refl[i] *= 0.55f;
-        return GlowBitmap(w, h, wire, k, 10 * k, refl);
+        extra = Blur(extra, w, h, 2);
+        for (int i = 0; i < extra.Length; i++) extra[i] *= 0.55f;
+        // the lit digit lights what is next to it: the other cathodes, the mica discs and the support rods
+        var near = Blur(wire, w, h, (int)(8 * k));
+        var metal = MaskOf(w, h, g =>
+        {
+            using (var pen = new Pen(Color.White, 1.0f * k)) { pen.LineJoin = LineJoin.Round; foreach (char o in Order) if (o != c) g.DrawPath(pen, Cathode(o, m, m, k)); }
+            using (var br = new SolidBrush(Color.FromArgb(120, 255, 255, 255))) { g.FillEllipse(br, m + 8 * k, m + 170 * k, 68 * k, 9 * k); g.FillEllipse(br, m + 9 * k, m + 39 * k, 66 * k, 8 * k); }
+            using (var pen = new Pen(Color.FromArgb(200, 255, 255, 255), 1.4f * k)) { g.DrawLine(pen, m + 11 * k, m + 40 * k, m + 11 * k, m + 182 * k); g.DrawLine(pen, m + 73 * k, m + 40 * k, m + 73 * k, m + 182 * k); }
+        });
+        for (int i = 0; i < extra.Length; i++) extra[i] += near[i] * metal[i] * 1.9f;
+        return GlowBitmap(w, h, wire, k, 10 * k, extra);
     }
 
-    // always-on sprite: only the thin glowing wire, no halo -> very few lit OLED pixels
     public static Bitmap AmbientDigit(char c, float k)
     {
         int w = (int)Math.Ceiling(84 * k), h = (int)Math.Ceiling(196 * k);
@@ -227,99 +240,162 @@ public static class NixieRender
         p.AddArc(l, bot - 2 * rr, 2 * rr, 2 * rr, 90, 90);
         p.CloseFigure(); return p;
     }
-    static void Honeycomb(Graphics g, Pen pen, RectangleF r, float s)
+    // Honeycomb wrapped on a cylinder of radius rad around cx: the cells bunch up toward the glass walls.
+    static void HoneycombCyl(Graphics g, Pen pen, float cx, float rad, float top, float bottom, float s)
     {
-        float hw = s * 0.866f;
+        float hw = s * 0.866f, arc = (float)(Math.PI * 0.5) * 0.95f * rad;
         for (int row = 0; ; row++)
         {
-            float cy = r.Top + row * s * 1.5f; if (cy - s > r.Bottom) break;
-            for (int col = -1; ; col++)
+            float cy = top + row * s * 1.5f; if (cy - s > bottom) break;
+            for (float u = -arc - 2 * hw + (row % 2 == 1 ? hw : 0); u < arc + 2 * hw; u += 2 * hw)
             {
-                float cx = r.Left + col * 2 * hw + (row % 2 == 1 ? hw : 0); if (cx - hw > r.Right) break;
-                var pts = new PointF[6]; for (int i = 0; i < 6; i++) { double a = Math.PI / 3 * i + Math.PI / 6; pts[i] = new PointF(cx + (float)Math.Cos(a) * s, cy + (float)Math.Sin(a) * s); }
-                g.DrawPolygon(pen, pts);
+                var pts = new PointF[6]; bool ok = true;
+                for (int i = 0; i < 6 && ok; i++)
+                {
+                    double a = Math.PI / 3 * i + Math.PI / 6; float uu = u + (float)Math.Cos(a) * s;
+                    if (Math.Abs(uu) > arc) ok = false; else pts[i] = new PointF(cx + rad * (float)Math.Sin(uu / rad), cy + (float)Math.Sin(a) * s);
+                }
+                if (ok) g.DrawPolygon(pen, pts);
             }
         }
     }
+    static void ClipCage(Graphics g, GraphicsPath glass, float ox, float oy, float k)
+    { g.SetClip(glass); g.SetClip(new RectangleF(ox + 8 * k, oy + 44 * k, 68 * k, 136 * k), CombineMode.Intersect); }
+    static Color Tone(int a, int r, int gr, int b, float t) { return Color.FromArgb(a, Clamp(r * t), Clamp(gr * t), Clamp(b * t)); }
 
-    static void TubeBack(Graphics g, float ox, float oy, float k, bool socket, int seed = 0)
+    // ---- opaque parts of a tube: shadow on the plinth, socket seen slightly from above, dark glass interior (goes into the background)
+    static void TubeShell(Graphics g, float ox, float oy, float k, int seed)
     {
-        var glass = Glass(ox, oy, k);
-        var rnd = new Random(100 + seed * 17);
-        float jx = (float)(rnd.NextDouble() - 0.5) * 1.4f, tone = 0.88f + (float)rnd.NextDouble() * 0.24f;
-        if (socket)
+        var rnd = new Random(100 + seed * 17); rnd.NextDouble(); float tone = 0.88f + (float)rnd.NextDouble() * 0.24f;
+        float cx = ox + 42 * k;
+        // contact shadow on the plinth top
+        using (var gp = new GraphicsPath())
         {
-            var sr = new RectangleF(ox + 8 * k, oy + 184 * k, 68 * k, 34 * k);
-            using (var lg = new LinearGradientBrush(sr, Color.FromArgb(255, 34, 33, 36), Color.FromArgb(255, 6, 6, 7), 0f))
-            { var cb = new ColorBlend(5); cb.Colors = new[] { Color.FromArgb(255, 10, 10, 12), Color.FromArgb(255, 48, 47, 52), Color.FromArgb(255, 22, 22, 25), Color.FromArgb(255, 8, 8, 9), Color.FromArgb(255, 4, 4, 5) }; cb.Positions = new[] { 0f, 0.25f, 0.5f, 0.8f, 1f }; lg.InterpolationColors = cb; g.FillRectangle(lg, sr); }
-            var ring = new RectangleF(ox + 6 * k, oy + 182 * k, 72 * k, 6 * k);
-            using (var lg = new LinearGradientBrush(ring, Color.White, Color.Black, 0f))
-            { var cb = new ColorBlend(5); cb.Colors = new[] { Color.FromArgb(255, 70, 70, 74), Color.FromArgb(255, 225, 225, 230), Color.FromArgb(255, 120, 120, 126), Color.FromArgb(255, 200, 200, 206), Color.FromArgb(255, 60, 60, 64) }; cb.Positions = new[] { 0f, 0.22f, 0.5f, 0.75f, 1f }; lg.InterpolationColors = cb; g.FillRectangle(lg, ring); }
+            var sr = new RectangleF(cx - 50 * k, oy + 207 * k, 100 * k, 17 * k); gp.AddEllipse(sr);
+            using (var pg = new PathGradientBrush(gp)) { pg.CenterColor = Color.FromArgb(215, 0, 0, 0); pg.SurroundColors = new[] { Color.FromArgb(0, 0, 0, 0) }; g.FillPath(pg, gp); }
         }
-        // glass interior
-        var gb = glass.GetBounds();
+        // socket: a short cylinder, so its bottom edge is curved and its top is an ellipse
+        var body = new RectangleF(ox + 8 * k, oy + 185 * k, 68 * k, 30 * k);
+        using (var gp = new GraphicsPath())
+        {
+            gp.AddLine(body.Left, body.Top, body.Right, body.Top); gp.AddLine(body.Right, body.Top, body.Right, body.Bottom);
+            gp.AddArc(body.Left, body.Bottom - 4 * k, body.Width, 8 * k, 0, 180); gp.CloseFigure();
+            using (var lg = new LinearGradientBrush(new RectangleF(body.X - 1, body.Y, body.Width + 2, body.Height + 5 * k), Color.Black, Color.Black, 0f))
+            { var cb = new ColorBlend(5); cb.Colors = new[] { Color.FromArgb(255, 9, 9, 11), Color.FromArgb(255, 52, 51, 56), Color.FromArgb(255, 24, 24, 27), Color.FromArgb(255, 9, 9, 10), Color.FromArgb(255, 4, 4, 5) }; cb.Positions = new[] { 0f, 0.24f, 0.5f, 0.8f, 1f }; lg.InterpolationColors = cb; g.FillPath(lg, gp); }
+        }
+        // chrome collar: full ellipse here, its front half is redrawn over the glass later
+        var ring = new RectangleF(ox + 5 * k, oy + 180.5f * k, 74 * k, 10 * k);
+        using (var lg = new LinearGradientBrush(ring, Color.White, Color.Black, 0f))
+        { var cb = new ColorBlend(5); cb.Colors = new[] { Color.FromArgb(255, 60, 60, 64), Color.FromArgb(255, 225, 225, 230), Color.FromArgb(255, 112, 112, 118), Color.FromArgb(255, 196, 196, 202), Color.FromArgb(255, 52, 52, 56) }; cb.Positions = new[] { 0f, 0.22f, 0.5f, 0.75f, 1f }; lg.InterpolationColors = cb; g.FillEllipse(lg, ring); }
+        using (var br = new SolidBrush(Color.FromArgb(255, 5, 5, 6))) g.FillEllipse(br, ox + 8 * k, oy + 182 * k, 68 * k, 6.5f * k);
+        // glass interior: darkest at the walls, where the line of sight runs through the most glass
+        var glass = Glass(ox, oy, k); var gb = glass.GetBounds();
         using (var lg = new LinearGradientBrush(new RectangleF(gb.X - 1, gb.Y, gb.Width + 2, gb.Height), Color.Black, Color.Black, 0f))
-        { var cb = new ColorBlend(5); cb.Colors = new[] { Color.FromArgb(255, 8, 7, 7), Color.FromArgb(255, (int)(30 * tone), (int)(24 * tone), (int)(21 * tone)), Color.FromArgb(255, (int)(24 * tone), (int)(19 * tone), (int)(17 * tone)), Color.FromArgb(255, (int)(30 * tone), (int)(24 * tone), (int)(21 * tone)), Color.FromArgb(255, 7, 6, 6) }; cb.Positions = new[] { 0f, 0.3f, 0.5f, 0.7f, 1f }; lg.InterpolationColors = cb; g.FillPath(lg, glass); }
-        var st = g.Save(); g.SetClip(glass);
-        // back anode mesh
-        using (var pen = new Pen(Color.FromArgb(46, 120, 105, 92), 0.55f)) Honeycomb(g, pen, new RectangleF(ox + 10 * k, oy + 44 * k, 64 * k, 136 * k), 2.3f * k);
-        // getter: silvery-dark mirror flashed onto the inside of the dome
+        { var cb = new ColorBlend(7); cb.Colors = new[] { Color.FromArgb(255, 3, 3, 3), Tone(255, 15, 12, 11, tone), Tone(255, 31, 25, 22, tone), Tone(255, 25, 20, 18, tone), Tone(255, 31, 25, 22, tone), Tone(255, 14, 11, 10, tone), Color.FromArgb(255, 3, 3, 3) }; cb.Positions = new[] { 0f, 0.1f, 0.3f, 0.5f, 0.7f, 0.9f, 1f }; lg.InterpolationColors = cb; g.FillPath(lg, glass); }
+    }
+
+    // ---- far half of the anode cage and the getter (own layer: it shifts against the digits when the wrist tilts)
+    static void TubeMeshBack(Graphics g, float ox, float oy, float k)
+    {
+        var glass = Glass(ox, oy, k); var st = g.Save(); ClipCage(g, glass, ox, oy, k);
+        using (var pen = new Pen(Color.FromArgb(50, 120, 105, 92), 0.55f)) HoneycombCyl(g, pen, ox + 42 * k, 32 * k, oy + 44 * k, oy + 180 * k, 2.3f * k);
+        g.Restore(st); st = g.Save(); g.SetClip(glass);
         using (var gp = new GraphicsPath())
         {
             var gr = new RectangleF(ox + 15 * k, oy + 5 * k, 54 * k, 30 * k); gp.AddEllipse(gr);
             using (var pg = new PathGradientBrush(gp)) { pg.CenterColor = Color.FromArgb(150, 66, 68, 78); pg.SurroundColors = new[] { Color.FromArgb(0, 30, 30, 36) }; pg.CenterPoint = new PointF(gr.X + gr.Width * 0.42f, gr.Y + gr.Height * 0.5f); g.FillPath(pg, gp); }
             using (var pen = new Pen(Color.FromArgb(40, 190, 195, 215), 0.9f * k)) g.DrawArc(pen, gr.X + 6 * k, gr.Y + 5 * k, gr.Width - 12 * k, gr.Height - 6 * k, 200, 70);
         }
-        // support rods + mica spacers
-        using (var pen = new Pen(Color.FromArgb(150, 150, 140, 128), 1.4f * k)) { g.DrawLine(pen, ox + 11 * k, oy + 40 * k, ox + 11 * k, oy + 182 * k); g.DrawLine(pen, ox + 73 * k, oy + 40 * k, ox + 73 * k, oy + 182 * k); }
-        using (var br = new SolidBrush(Color.FromArgb(60, 230, 225, 210))) { g.FillEllipse(br, ox + 8 * k, oy + 172 * k, 68 * k, 7 * k); g.FillEllipse(br, ox + 9 * k, oy + 40 * k, 66 * k, 6 * k); }
-        // pins
+        g.Restore(st);
+    }
+
+    // ---- what sits in the plane of the digits: rods, mica discs, pins, leads and the unlit cathode stack
+    static void TubeInner(Graphics g, float ox, float oy, float k, int seed)
+    {
+        var rnd = new Random(100 + seed * 17); float jx = (float)(rnd.NextDouble() - 0.5) * 1.4f;
+        var glass = Glass(ox, oy, k); var st = g.Save(); g.SetClip(glass);
+        // support rods: round bars, lit from the left
+        foreach (float rx in new[] { 11f, 73f })
+        {
+            using (var pen = new Pen(Color.FromArgb(150, 92, 86, 78), 1.9f * k)) g.DrawLine(pen, ox + rx * k, oy + 40 * k, ox + rx * k, oy + 182 * k);
+            using (var pen = new Pen(Color.FromArgb(150, 200, 190, 176), 0.6f * k)) g.DrawLine(pen, ox + (rx - 0.45f) * k, oy + 40 * k, ox + (rx - 0.45f) * k, oy + 182 * k);
+        }
+        // mica spacers: discs seen from slightly above
+        foreach (var d in new[] { new RectangleF(ox + 8 * k, oy + 170 * k, 68 * k, 9 * k), new RectangleF(ox + 9 * k, oy + 39 * k, 66 * k, 8 * k) })
+        {
+            using (var br = new SolidBrush(Color.FromArgb(58, 230, 225, 210))) g.FillEllipse(br, d);
+            using (var pen = new Pen(Color.FromArgb(84, 245, 240, 226), 0.8f * k)) g.DrawArc(pen, d, 0, 180);
+            using (var pen = new Pen(Color.FromArgb(36, 245, 240, 226), 0.6f * k)) g.DrawArc(pen, d, 180, 180);
+        }
         using (var pen = new Pen(Color.FromArgb(160, 170, 160, 150), 1f * k)) for (int i = 0; i < 9; i++) { float x = ox + (16 + i * 6.5f) * k; g.DrawLine(pen, x, oy + 178 * k, x, oy + 190 * k); }
-        // leads fanning from the cathode stack down to the pins
         using (var pen = new Pen(Color.FromArgb(95, 165, 150, 135), 0.7f * k)) for (int i = 0; i < 9; i++) { float px = ox + (16 + i * 6.5f) * k; g.DrawBezier(pen, ox + (30 + i * 3f + jx) * k, oy + 166 * k, ox + (30 + i * 3f) * k, oy + 172 * k, px, oy + 172 * k, px, oy + 179 * k); }
-        // unlit cathode stack (same geometry as the lit sprites)
+        // unlit cathodes: stamped metal, so each has a darker body and a thin lit edge on its upper left
         for (int i = 0; i < Order.Length; i++)
         {
             float depth = i / 9f;
-            using (var pen = new Pen(Color.FromArgb((int)(55 + 85 * depth), 150, 120, 96), Math.Max(0.7f, 1.15f * k)))
-            { pen.LineJoin = LineJoin.Round; g.DrawPath(pen, Cathode(Order[i], ox, oy, k)); }
+            using (var pen = new Pen(Color.FromArgb((int)(60 + 90 * depth), 112, 90, 72), Math.Max(0.8f, 1.3f * k))) { pen.LineJoin = LineJoin.Round; g.DrawPath(pen, Cathode(Order[i], ox, oy, k)); }
+            using (var pen = new Pen(Color.FromArgb((int)(34 + 86 * depth), 226, 204, 176), 0.5f * k)) { pen.LineJoin = LineJoin.Round; g.DrawPath(pen, Cathode(Order[i], ox - 0.5f, oy - 0.5f, k)); }
         }
         g.Restore(st);
     }
 
-    static void TubeFront(Graphics g, float ox, float oy, float k, int seed = 0)
+    // ---- near half of the anode cage (own layer for the tilt parallax)
+    static void TubeMeshFront(Graphics g, float ox, float oy, float k)
     {
-        var glass = Glass(ox, oy, k);
+        var st = g.Save(); ClipCage(g, Glass(ox, oy, k), ox, oy, k);
+        using (var pen = new Pen(Color.FromArgb(24, 20, 17, 15), 0.5f)) HoneycombCyl(g, pen, ox + 42 * k, 32 * k, oy + 44 * k, oy + 180 * k, 2.3f * k);
+        g.Restore(st);
+    }
+
+    // ---- the glass itself: thick dark walls, double rim, dust, scratches, front half of the collar (static)
+    static void TubeGlass(Graphics g, float ox, float oy, float k, int seed)
+    {
+        var glass = Glass(ox, oy, k); var gb = glass.GetBounds();
         var st = g.Save(); g.SetClip(glass);
         var rnd = new Random(500 + seed * 31);
-        // soft slanted reflection of the room
-        using (var gp = new GraphicsPath())
+        // walls: where the cylinder turns away the glass is seen edge-on, so it goes dark and then catches a thin bright line
+        float ww = 10 * k;
+        using (var lg = new LinearGradientBrush(new RectangleF(gb.Left - 1, gb.Top, ww + 1, gb.Height), Color.FromArgb(150, 0, 0, 0), Color.FromArgb(0, 0, 0, 0), 0f)) g.FillRectangle(lg, gb.Left, gb.Top, ww, gb.Height);
+        using (var lg = new LinearGradientBrush(new RectangleF(gb.Right - ww, gb.Top, ww + 1, gb.Height), Color.FromArgb(0, 0, 0, 0), Color.FromArgb(150, 0, 0, 0), 0f)) g.FillRectangle(lg, gb.Right - ww, gb.Top, ww, gb.Height);
+        using (var inner = (GraphicsPath)glass.Clone())
         {
-            gp.AddPolygon(new[] { new PointF(ox + 22 * k, oy + 10 * k), new PointF(ox + 40 * k, oy + 10 * k), new PointF(ox + 26 * k, oy + 186 * k), new PointF(ox + 12 * k, oy + 186 * k) });
-            using (var br = new SolidBrush(Color.FromArgb(9, 235, 240, 255))) g.FillPath(br, gp);
+            var mx = new Matrix(); mx.Translate(gb.X + gb.Width / 2, gb.Y + gb.Height / 2); mx.Scale((gb.Width - 5.2f * k) / gb.Width, (gb.Height - 5.2f * k) / gb.Height); mx.Translate(-(gb.X + gb.Width / 2), -(gb.Y + gb.Height / 2)); inner.Transform(mx);
+            using (var pen = new Pen(Color.FromArgb(34, 225, 230, 245), 0.8f * k)) g.DrawPath(pen, inner);
         }
-        // dust specks and hairline scratches
         for (int i = 0; i < 26; i++) { float x = ox + (8 + (float)rnd.NextDouble() * 68) * k, y = oy + (10 + (float)rnd.NextDouble() * 172) * k, r = 0.35f + (float)rnd.NextDouble() * 0.7f;
             using (var br = new SolidBrush(Color.FromArgb(rnd.Next(22, 70), 235, 235, 240))) g.FillEllipse(br, x, y, r * 2, r * 2); }
         for (int i = 0; i < 4; i++) { float x = ox + (10 + (float)rnd.NextDouble() * 60) * k, y = oy + (20 + (float)rnd.NextDouble() * 150) * k, len = (6 + (float)rnd.NextDouble() * 18) * k; double a = rnd.NextDouble() * Math.PI;
             using (var pen = new Pen(Color.FromArgb(rnd.Next(14, 34), 240, 240, 250), 0.6f)) g.DrawBezier(pen, x, y, x + (float)Math.Cos(a) * len * 0.3f + 1, y + (float)Math.Sin(a) * len * 0.3f, x + (float)Math.Cos(a) * len * 0.7f - 1, y + (float)Math.Sin(a) * len * 0.7f, x + (float)Math.Cos(a) * len, y + (float)Math.Sin(a) * len); }
-        // front anode mesh
-        using (var pen = new Pen(Color.FromArgb(20, 20, 17, 15), 0.5f)) Honeycomb(g, pen, new RectangleF(ox + 10 * k, oy + 44 * k, 64 * k, 136 * k), 2.3f * k);
-        // vertical specular highlights
-        var hl = new RectangleF(ox + 10 * k, oy + 20 * k, 9 * k, 160 * k);
-        using (var lg = new LinearGradientBrush(hl, Color.Transparent, Color.Transparent, 0f))
-        { var cb = new ColorBlend(3); cb.Colors = new[] { Color.FromArgb(0, 255, 255, 255), Color.FromArgb(95, 255, 255, 255), Color.FromArgb(0, 255, 255, 255) }; cb.Positions = new[] { 0f, 0.45f, 1f }; lg.InterpolationColors = cb; g.FillRectangle(lg, hl); }
-        var hl2 = new RectangleF(ox + 66 * k, oy + 30 * k, 5 * k, 140 * k);
-        using (var lg = new LinearGradientBrush(hl2, Color.Transparent, Color.Transparent, 0f))
-        { var cb = new ColorBlend(3); cb.Colors = new[] { Color.FromArgb(0, 255, 255, 255), Color.FromArgb(45, 255, 240, 220), Color.FromArgb(0, 255, 255, 255) }; cb.Positions = new[] { 0f, 0.5f, 1f }; lg.InterpolationColors = cb; g.FillRectangle(lg, hl2); }
-        // dome highlight
-        using (var pen = new Pen(Color.FromArgb(90, 255, 255, 255), 2.2f * k)) { pen.StartCap = LineCap.Round; pen.EndCap = LineCap.Round; g.DrawArc(pen, ox + 12 * k, oy + 12 * k, 60 * k, 60 * k, 200, 50); }
         g.Restore(st);
-        // glass edge
-        using (var pen = new Pen(Color.FromArgb(70, 220, 225, 235), 1.1f * k)) g.DrawPath(pen, glass);
+        using (var pen = new Pen(Color.FromArgb(92, 220, 225, 235), 1.2f * k)) g.DrawPath(pen, glass);
+        // front half of the chrome collar, over the bottom of the glass
+        var ring = new RectangleF(ox + 5 * k, oy + 180.5f * k, 74 * k, 10 * k);
+        using (var lg = new LinearGradientBrush(ring, Color.White, Color.Black, 0f))
+        { var cb = new ColorBlend(5); cb.Colors = new[] { Color.FromArgb(255, 60, 60, 64), Color.FromArgb(255, 232, 232, 238), Color.FromArgb(255, 118, 118, 124), Color.FromArgb(255, 200, 200, 206), Color.FromArgb(255, 52, 52, 56) }; cb.Positions = new[] { 0f, 0.22f, 0.5f, 0.75f, 1f }; lg.InterpolationColors = cb;
+          using (var pen = new Pen(lg, 3.4f * k)) g.DrawArc(pen, ring.X + 1.7f * k, ring.Y + 1.2f * k, ring.Width - 3.4f * k, ring.Height - 1.6f * k, 4, 172); }
+        using (var pen = new Pen(Color.FromArgb(150, 0, 0, 0), 0.8f * k)) g.DrawArc(pen, ring.X, ring.Y + 1.5f * k, ring.Width, ring.Height, 6, 168);
         // exhaust tip
         using (var br = new SolidBrush(Color.FromArgb(110, 210, 215, 225))) g.FillEllipse(br, ox + 38 * k, oy + 0.5f * k, 8 * k, 7 * k);
         using (var br = new SolidBrush(Color.FromArgb(180, 255, 255, 255))) g.FillEllipse(br, ox + 39.5f * k, oy + 1.5f * k, 2.5f * k, 2.5f * k);
+    }
+
+    // ---- reflections on the glass (own layer: they slide across the tube when the wrist tilts)
+    static void TubeHighlights(Graphics g, float ox, float oy, float k)
+    {
+        var st = g.Save(); g.SetClip(Glass(ox, oy, k));
+        using (var gp = new GraphicsPath())
+        {
+            gp.AddPolygon(new[] { new PointF(ox + 24 * k, oy + 10 * k), new PointF(ox + 42 * k, oy + 10 * k), new PointF(ox + 28 * k, oy + 186 * k), new PointF(ox + 14 * k, oy + 186 * k) });
+            using (var br = new SolidBrush(Color.FromArgb(9, 235, 240, 255))) g.FillPath(br, gp);
+        }
+        var hl = new RectangleF(ox + 13 * k, oy + 20 * k, 9 * k, 160 * k);
+        using (var lg = new LinearGradientBrush(hl, Color.Transparent, Color.Transparent, 0f))
+        { var cb = new ColorBlend(3); cb.Colors = new[] { Color.FromArgb(0, 255, 255, 255), Color.FromArgb(105, 255, 255, 255), Color.FromArgb(0, 255, 255, 255) }; cb.Positions = new[] { 0f, 0.45f, 1f }; lg.InterpolationColors = cb; g.FillRectangle(lg, hl); }
+        var hl2 = new RectangleF(ox + 64 * k, oy + 30 * k, 5 * k, 140 * k);
+        using (var lg = new LinearGradientBrush(hl2, Color.Transparent, Color.Transparent, 0f))
+        { var cb = new ColorBlend(3); cb.Colors = new[] { Color.FromArgb(0, 255, 255, 255), Color.FromArgb(48, 255, 240, 220), Color.FromArgb(0, 255, 255, 255) }; cb.Positions = new[] { 0f, 0.5f, 1f }; lg.InterpolationColors = cb; g.FillRectangle(lg, hl2); }
+        using (var pen = new Pen(Color.FromArgb(95, 255, 255, 255), 2.2f * k)) { pen.StartCap = LineCap.Round; pen.EndCap = LineCap.Round; g.DrawArc(pen, ox + 14 * k, oy + 12 * k, 58 * k, 60 * k, 200, 50); }
+        g.Restore(st);
     }
 
     static void Brass(Graphics g, RectangleF r, float radius)
@@ -386,6 +462,7 @@ public static class NixieRender
             AddLight(bmp, tx, BigY + 120 * BigK, 78, 150, 255, 96, 22, 0.10f * b);          // halo on the wall behind each tube
             AddLight(bmp, tx, plinthTop + 8, 56, 10, 255, 118, 38, 0.72f * b);                // polished top edge
             AddLight(bmp, tx, plinthFront + 4, 46, 46, 255, 104, 30, 0.20f * b);              // spill down the brushed front
+            AddLight(bmp, tx, plinthFront + 30, 26, 70, 255, 98, 26, 0.12f * b);              // long smeared reflection of the tube in the plate
         }
         using (var g = Graphics.FromImage(bmp))
         {
@@ -397,7 +474,7 @@ public static class NixieRender
             // hex socket bolts on the front plate
             foreach (var bxy in new[] { new PointF(118, 396), new PointF(348, 396) }) Bolt(g, bxy.X, bxy.Y, 5);
             // big tubes
-            for (int i = 0; i < 4; i++) TubeBack(g, BigX[i], BigY, BigK, true, i);
+            for (int i = 0; i < 4; i++) TubeShell(g, BigX[i], BigY, BigK, i);
             // colon bulbs (INS-1 style)
             foreach (var cy in ColonY)
             {
@@ -442,13 +519,24 @@ public static class NixieRender
         return bmp;
     }
 
+    static Bitmap Layer(Action<Graphics> draw)
+    {
+        var bmp = new Bitmap(S, S, PixelFormat.Format32bppArgb);
+        using (var g = Graphics.FromImage(bmp)) { g.SmoothingMode = SmoothingMode.AntiAlias; g.PixelOffsetMode = PixelOffsetMode.HighQuality; g.Clear(Color.Transparent); draw(g); }
+        return bmp;
+    }
+    public static Bitmap BackMesh() { return Layer(g => { for (int i = 0; i < 4; i++) TubeMeshBack(g, BigX[i], BigY, BigK); }); }
+    public static Bitmap Inner() { return Layer(g => { for (int i = 0; i < 4; i++) TubeInner(g, BigX[i], BigY, BigK, i); }); }
+    public static Bitmap FrontMesh() { return Layer(g => { for (int i = 0; i < 4; i++) TubeMeshFront(g, BigX[i], BigY, BigK); }); }
+    public static Bitmap Highlights() { return Layer(g => { for (int i = 0; i < 4; i++) TubeHighlights(g, BigX[i], BigY, BigK); }); }
+
     public static Bitmap Overlay()
     {
         var bmp = new Bitmap(S, S, PixelFormat.Format32bppArgb);
         using (var g = Graphics.FromImage(bmp))
         {
             g.SmoothingMode = SmoothingMode.AntiAlias; g.PixelOffsetMode = PixelOffsetMode.HighQuality; g.Clear(Color.Transparent);
-            for (int i = 0; i < 4; i++) TubeFront(g, BigX[i], BigY, BigK, i);
+            for (int i = 0; i < 4; i++) TubeGlass(g, BigX[i], BigY, BigK, i);
             foreach (var cy in ColonY)
             {
                 using (var pen = new Pen(Color.FromArgb(80, 230, 230, 240), 0.9f)) g.DrawEllipse(pen, 227, cy - 11, 12, 20);
@@ -487,6 +575,10 @@ public static class NixieRender
     {
         Background().Save(System.IO.Path.Combine(outDir, "nx_bg.png"), ImageFormat.Png);
         Overlay().Save(System.IO.Path.Combine(outDir, "nx_front.png"), ImageFormat.Png);
+        BackMesh().Save(System.IO.Path.Combine(outDir, "nx_back.png"), ImageFormat.Png);
+        Inner().Save(System.IO.Path.Combine(outDir, "nx_inner.png"), ImageFormat.Png);
+        FrontMesh().Save(System.IO.Path.Combine(outDir, "nx_mesh.png"), ImageFormat.Png);
+        Highlights().Save(System.IO.Path.Combine(outDir, "nx_hl.png"), ImageFormat.Png);
         for (char c = '0'; c <= '9'; c++)
         {
             LitDigit(c, BigK).Save(System.IO.Path.Combine(outDir, "nx_d" + c + ".png"), ImageFormat.Png);
