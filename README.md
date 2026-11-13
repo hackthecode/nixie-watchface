@@ -7,8 +7,11 @@ A nixie tube clock for round Wear OS watches (built for the OnePlus Watch 3, 466
 ## Features
 
 - Hours and minutes on four tubes, following the 12/24 h system setting
-- Neon colon bulbs
-- Battery bar and percentage on the base
+- Each digit glows at its own depth in the cathode stack, with the unlit cathodes in front crossing it as thin wires
+- Hot core, orange halo and a faint violet haze; the lit digit reflects in the curved glass walls and spills light onto the base
+- Tubes warm up with a short flicker each time the watch wakes, and the outgoing digit ghosts for a second when the minute changes
+- No two tubes are alike: brightness, glass tone, dust and scratches differ per tube
+- Neon colon bulbs, battery bar and percentage on the base
 - Dimmed always-on (ambient) mode: digits only
 
 ## How it is built

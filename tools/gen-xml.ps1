@@ -2,20 +2,27 @@
 # Layout: four big tubes (HH:MM) + a battery bar-graph tube with percent underneath.
 $root = Split-Path $PSScriptRoot -Parent
 $H = '([IS_24_HOUR_MODE] ? [HOUR_0_23] : [HOUR_1_12])'
+# previous minute's reading, for the one-second ghost of the outgoing digit when the minute rolls over
+$Hp = "(([MINUTE] == 0) ? ([IS_24_HOUR_MODE] ? (([HOUR_0_23] + 23) % 24) : ((([HOUR_1_12] + 10) % 12) + 1)) : $H)"
+$Mp = '(([MINUTE] + 59) % 60)'
+# a = steady brightness of each tube (old tubes never match; keep in sync with NixieRender.Bright)
 $tubes = @(
-  @{ x = 25;  y = 86; w = 105; h = 244; img = "nx_d"; expr = "floor($H / 10)" },
-  @{ x = 123; y = 86; w = 105; h = 244; img = "nx_d"; expr = "($H % 10)" },
-  @{ x = 239; y = 86; w = 105; h = 244; img = "nx_d"; expr = "floor([MINUTE] / 10)" },
-  @{ x = 337; y = 86; w = 105; h = 244; img = "nx_d"; expr = "([MINUTE] % 10)" }
+  @{ x = 25;  y = 86; w = 105; h = 244; img = "nx_d"; a = 255; expr = "floor($H / 10)";        prev = "floor($Hp / 10)" },
+  @{ x = 123; y = 86; w = 105; h = 244; img = "nx_d"; a = 235; expr = "($H % 10)";             prev = "($Hp % 10)" },
+  @{ x = 239; y = 86; w = 105; h = 244; img = "nx_d"; a = 247; expr = "floor([MINUTE] / 10)";  prev = "floor($Mp / 10)" },
+  @{ x = 337; y = 86; w = 105; h = 244; img = "nx_d"; a = 224; expr = "([MINUTE] % 10)";       prev = "($Mp % 10)" }
 )
-$ambient = $tubes | ForEach-Object { $a = $_.Clone(); $a.img = "nx_a"; $a }
+$ambient = $tubes | ForEach-Object { $a = $_.Clone(); $a.img = "nx_a"; $a.prev = $null; $a.a = 255; $a }
 function Digits($list) {
   $sb = ""
   foreach ($t in $list) { for ($k = 0; $k -le 9; $k++) {
-    $e = [System.Security.SecurityElement]::Escape("($($t.expr) == $k) ? 255 : 0")
+    # during second 0 the new digit is still coming up and the old one is still fading out
+    $raw = if ($t.prev) { "($($t.expr) == $k) ? ((([SECOND] == 0) && ($($t.prev) != $k)) ? 150 : $($t.a)) : ((([SECOND] == 0) && ($($t.prev) == $k)) ? 105 : 0)" } else { "($($t.expr) == $k) ? 255 : 0" }
+    $e = [System.Security.SecurityElement]::Escape($raw)
     $sb += "      <PartImage x=`"$($t.x)`" y=`"$($t.y)`" width=`"$($t.w)`" height=`"$($t.h)`" alpha=`"0`"><Transform target=`"alpha`" value=`"$e`"/><Image resource=`"$($t.img)$k`"/></PartImage>`n" } }
   return $sb
 }
+$warm = ""; for ($n = 0; $n -le 13; $n++) { $warm += "        <Image resource=`"nx_w{0:00}`"/>`n" -f $n }
 $xml = @"
 <?xml version="1.0" encoding="utf-8"?>
 <!-- NIXIE: photoreal IN-14 style nixie tube clock, Watch Face Format v2, 466x466 -->
@@ -45,6 +52,14 @@ $(Digits $ambient)    </Group>
       <PartImage x="216" y="176" width="34" height="40" alpha="255"><Image resource="nx_bulb"/></PartImage>
       <PartImage x="216" y="234" width="34" height="40" alpha="255"><Image resource="nx_bulb"/></PartImage>
     </Group>
+
+    <!-- warm-up: dark covers over the glass interiors flicker away once each time the face becomes visible -->
+    <PartAnimatedImage name="warmup" x="20" y="80" width="426" height="256">
+      <Variant mode="AMBIENT" target="alpha" value="0"/>
+      <AnimationController play="ON_VISIBLE" loopCount="1" beforePlaying="FIRST_FRAME" afterPlaying="HIDE"/>
+      <SequenceImages loopCount="1" frameRate="20" thumbnail="nx_w13">
+$warm      </SequenceImages>
+    </PartAnimatedImage>
 
     <!-- bar-graph tube: battery -->
     <Group name="bars" x="0" y="0" width="466" height="466" alpha="255">

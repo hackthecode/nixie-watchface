@@ -15,6 +15,8 @@ public static class NixieRender
     // Scene geometry (shared with the WFF XML generator)
     public static readonly float[] BigX = { 25, 123, 239, 337 };
     public const float BigY = 86, BigK = 1.24f;
+    // old tubes never match: relative brightness of each one (also used for the digit alpha in the XML)
+    public static readonly float[] Bright = { 1.00f, 0.92f, 0.97f, 0.88f };
     public const int BarW = 120, BarH = 14, BarX = 233 - BarW / 2, BarY = 382;
     public static readonly float[] ColonY = { 196, 254 };
     const float PlinthTop = BigY + 212 * BigK, PlinthFront = PlinthTop + 16;
@@ -60,14 +62,15 @@ public static class NixieRender
 
     // ------------------------------------------------------------ glow -> transparent PNG
     // layers: radius, r, g, b, gain ; output is "light" encoded as colour + alpha for normal blending on dark glass
-    static Bitmap GlowBitmap(int w, int h, float[] wire, float scale, float edgeFade)
+    static Bitmap GlowBitmap(int w, int h, float[] wire, float scale, float edgeFade, float[] extra = null)
     {
         float[][] L = {
-            new float[]{0, 1.00f,0.80f,0.50f, 1.00f},
+            new float[]{0, 1.00f,0.86f,0.58f, 1.00f},
             new float[]{1.5f, 1.00f,0.46f,0.08f, 1.10f},
-            new float[]{4, 1.00f,0.35f,0.03f, 0.95f},
+            new float[]{4, 1.00f,0.35f,0.03f, 0.78f},
             new float[]{11, 1.00f,0.28f,0.02f, 0.72f},
             new float[]{26, 0.95f,0.22f,0.01f, 0.44f},
+            new float[]{7, 0.30f,0.16f,0.80f, 0.10f},   // faint violet haze of the discharge
         };
         var R = new float[w * h]; var G = new float[w * h]; var B = new float[w * h];
         foreach (var l in L)
@@ -75,6 +78,7 @@ public static class NixieRender
             int rad = (int)Math.Round(l[0] * scale); var m = rad < 1 ? wire : Blur(wire, w, h, rad);
             for (int i = 0; i < w * h; i++) { float v = m[i] * l[4]; R[i] += v * l[1]; G[i] += v * l[2]; B[i] += v * l[3]; }
         }
+        if (extra != null) for (int i = 0; i < w * h; i++) { R[i] += extra[i]; G[i] += extra[i] * 0.42f; B[i] += extra[i] * 0.08f; }
         var bmp = new Bitmap(w, h, PixelFormat.Format32bppArgb);
         var buf = new byte[w * h * 4];
         for (int y = 0; y < h; y++) for (int x = 0; x < w; x++)
@@ -108,22 +112,46 @@ public static class NixieRender
         }
     }
 
+    // Cathodes sit one behind another: index 0 is the rearmost, 9 the frontmost. Front ones are larger and shifted.
+    public const string Order = "1608295374";
+    static GraphicsPath Cathode(char c, float ox, float oy, float k, float jx = 0, float jy = 0)
+    {
+        float depth = Order.IndexOf(c) / 9f;
+        return Digit(c, ox + (42 + (depth - 0.5f) * 3.0f + jx) * k, oy + (112 - (depth - 0.5f) * 1.6f + jy) * k, (104 + 9 * depth) * k, 1f);
+    }
+
     // ------------------------------------------------------------ lit digit sprite (box-sized)
     public static Bitmap LitDigit(char c, float k)
     {
         int w = (int)Math.Ceiling(84 * k), h = (int)Math.Ceiling(196 * k);
-        var mask = MaskOf(w, h, g => g.FillPath(Brushes.White, Digit(c, 42 * k, 112 * k, 112 * k, 1f)));
+        var mask = MaskOf(w, h, g => g.FillPath(Brushes.White, Cathode(c, 0, 0, k)));
         var wire = k > 0.7f ? Erode(mask, w, h, 3) : Erode(mask, w, h, 1);
         wire = Blur(wire, w, h, 1);
         for (int i = 0; i < wire.Length; i++) wire[i] = Math.Min(1, wire[i] * 2.2f);
-        return GlowBitmap(w, h, wire, k, 10 * k);
+        // unlit cathodes in front of this one cross the glow as thin dark wires
+        int me = Order.IndexOf(c);
+        var front = MaskOf(w, h, g => { using (var pen = new Pen(Color.White, 0.8f * k)) { pen.LineJoin = LineJoin.Round; for (int j = me + 1; j < Order.Length; j++) g.DrawPath(pen, Cathode(Order[j], 0, 0, k)); } });
+        for (int i = 0; i < wire.Length; i++) wire[i] *= 1 - 0.30f * front[i];
+        // reflections of the lit cathode in the curved glass walls: squeezed, mirrored copies near each side
+        var refl = new float[w * h];
+        float[] wallX = { 13f * k, 71f * k }; float half = 4.5f * k, squeeze = 6.5f;
+        for (int y = 0; y < h; y++) foreach (var xr in wallX)
+            for (int x = (int)(xr - half); x <= (int)(xr + half); x++)
+            {
+                if (x < 0 || x >= w) continue;
+                float t = (x - xr) / half; int sx = (int)Math.Round(42 * k - (x - xr) * squeeze);
+                refl[y * w + x] += At(wire, w, h, sx, y) * (1 - t * t);
+            }
+        refl = Blur(refl, w, h, 2);
+        for (int i = 0; i < refl.Length; i++) refl[i] *= 0.55f;
+        return GlowBitmap(w, h, wire, k, 10 * k, refl);
     }
 
     // always-on sprite: only the thin glowing wire, no halo -> very few lit OLED pixels
     public static Bitmap AmbientDigit(char c, float k)
     {
         int w = (int)Math.Ceiling(84 * k), h = (int)Math.Ceiling(196 * k);
-        var mask = MaskOf(w, h, g => g.FillPath(Brushes.White, Digit(c, 42 * k, 112 * k, 112 * k, 1f)));
+        var mask = MaskOf(w, h, g => g.FillPath(Brushes.White, Cathode(c, 0, 0, k)));
         var inner = Erode(mask, w, h, 4);
         var wire = new float[w * h];
         for (int i = 0; i < wire.Length; i++) wire[i] = Math.Max(0, mask[i] - inner[i]); // outline only
@@ -214,9 +242,11 @@ public static class NixieRender
         }
     }
 
-    static void TubeBack(Graphics g, float ox, float oy, float k, bool socket)
+    static void TubeBack(Graphics g, float ox, float oy, float k, bool socket, int seed = 0)
     {
         var glass = Glass(ox, oy, k);
+        var rnd = new Random(100 + seed * 17);
+        float jx = (float)(rnd.NextDouble() - 0.5) * 1.4f, tone = 0.88f + (float)rnd.NextDouble() * 0.24f;
         if (socket)
         {
             var sr = new RectangleF(ox + 8 * k, oy + 184 * k, 68 * k, 34 * k);
@@ -229,32 +259,52 @@ public static class NixieRender
         // glass interior
         var gb = glass.GetBounds();
         using (var lg = new LinearGradientBrush(new RectangleF(gb.X - 1, gb.Y, gb.Width + 2, gb.Height), Color.Black, Color.Black, 0f))
-        { var cb = new ColorBlend(5); cb.Colors = new[] { Color.FromArgb(255, 8, 7, 7), Color.FromArgb(255, 30, 24, 21), Color.FromArgb(255, 24, 19, 17), Color.FromArgb(255, 30, 24, 21), Color.FromArgb(255, 7, 6, 6) }; cb.Positions = new[] { 0f, 0.3f, 0.5f, 0.7f, 1f }; lg.InterpolationColors = cb; g.FillPath(lg, glass); }
+        { var cb = new ColorBlend(5); cb.Colors = new[] { Color.FromArgb(255, 8, 7, 7), Color.FromArgb(255, (int)(30 * tone), (int)(24 * tone), (int)(21 * tone)), Color.FromArgb(255, (int)(24 * tone), (int)(19 * tone), (int)(17 * tone)), Color.FromArgb(255, (int)(30 * tone), (int)(24 * tone), (int)(21 * tone)), Color.FromArgb(255, 7, 6, 6) }; cb.Positions = new[] { 0f, 0.3f, 0.5f, 0.7f, 1f }; lg.InterpolationColors = cb; g.FillPath(lg, glass); }
         var st = g.Save(); g.SetClip(glass);
         // back anode mesh
-        using (var pen = new Pen(Color.FromArgb(70, 120, 105, 92), 0.8f * Math.Max(0.6f, k))) Honeycomb(g, pen, new RectangleF(ox + 10 * k, oy + 44 * k, 64 * k, 136 * k), 4.2f * k);
+        using (var pen = new Pen(Color.FromArgb(46, 120, 105, 92), 0.55f)) Honeycomb(g, pen, new RectangleF(ox + 10 * k, oy + 44 * k, 64 * k, 136 * k), 2.3f * k);
+        // getter: silvery-dark mirror flashed onto the inside of the dome
+        using (var gp = new GraphicsPath())
+        {
+            var gr = new RectangleF(ox + 15 * k, oy + 5 * k, 54 * k, 30 * k); gp.AddEllipse(gr);
+            using (var pg = new PathGradientBrush(gp)) { pg.CenterColor = Color.FromArgb(150, 66, 68, 78); pg.SurroundColors = new[] { Color.FromArgb(0, 30, 30, 36) }; pg.CenterPoint = new PointF(gr.X + gr.Width * 0.42f, gr.Y + gr.Height * 0.5f); g.FillPath(pg, gp); }
+            using (var pen = new Pen(Color.FromArgb(40, 190, 195, 215), 0.9f * k)) g.DrawArc(pen, gr.X + 6 * k, gr.Y + 5 * k, gr.Width - 12 * k, gr.Height - 6 * k, 200, 70);
+        }
         // support rods + mica spacers
         using (var pen = new Pen(Color.FromArgb(150, 150, 140, 128), 1.4f * k)) { g.DrawLine(pen, ox + 11 * k, oy + 40 * k, ox + 11 * k, oy + 182 * k); g.DrawLine(pen, ox + 73 * k, oy + 40 * k, ox + 73 * k, oy + 182 * k); }
         using (var br = new SolidBrush(Color.FromArgb(60, 230, 225, 210))) { g.FillEllipse(br, ox + 8 * k, oy + 172 * k, 68 * k, 7 * k); g.FillEllipse(br, ox + 9 * k, oy + 40 * k, 66 * k, 6 * k); }
         // pins
         using (var pen = new Pen(Color.FromArgb(160, 170, 160, 150), 1f * k)) for (int i = 0; i < 9; i++) { float x = ox + (16 + i * 6.5f) * k; g.DrawLine(pen, x, oy + 178 * k, x, oy + 190 * k); }
-        // unlit cathode stack
-        string order = "1608295374";
-        for (int i = 0; i < order.Length; i++)
+        // leads fanning from the cathode stack down to the pins
+        using (var pen = new Pen(Color.FromArgb(95, 165, 150, 135), 0.7f * k)) for (int i = 0; i < 9; i++) { float px = ox + (16 + i * 6.5f) * k; g.DrawBezier(pen, ox + (30 + i * 3f + jx) * k, oy + 166 * k, ox + (30 + i * 3f) * k, oy + 172 * k, px, oy + 172 * k, px, oy + 179 * k); }
+        // unlit cathode stack (same geometry as the lit sprites)
+        for (int i = 0; i < Order.Length; i++)
         {
             float depth = i / 9f;
-            using (var pen = new Pen(Color.FromArgb((int)(60 + 80 * depth), 150, 120, 96), Math.Max(0.7f, 1.2f * k)))
-            { pen.LineJoin = LineJoin.Round; g.DrawPath(pen, Digit(order[i], ox + (42 + (depth - 0.5f) * 1.2f) * k, oy + 112 * k, (108 + 4 * depth) * k, 1f)); }
+            using (var pen = new Pen(Color.FromArgb((int)(55 + 85 * depth), 150, 120, 96), Math.Max(0.7f, 1.15f * k)))
+            { pen.LineJoin = LineJoin.Round; g.DrawPath(pen, Cathode(Order[i], ox, oy, k)); }
         }
         g.Restore(st);
     }
 
-    static void TubeFront(Graphics g, float ox, float oy, float k)
+    static void TubeFront(Graphics g, float ox, float oy, float k, int seed = 0)
     {
         var glass = Glass(ox, oy, k);
         var st = g.Save(); g.SetClip(glass);
+        var rnd = new Random(500 + seed * 31);
+        // soft slanted reflection of the room
+        using (var gp = new GraphicsPath())
+        {
+            gp.AddPolygon(new[] { new PointF(ox + 22 * k, oy + 10 * k), new PointF(ox + 40 * k, oy + 10 * k), new PointF(ox + 26 * k, oy + 186 * k), new PointF(ox + 12 * k, oy + 186 * k) });
+            using (var br = new SolidBrush(Color.FromArgb(9, 235, 240, 255))) g.FillPath(br, gp);
+        }
+        // dust specks and hairline scratches
+        for (int i = 0; i < 26; i++) { float x = ox + (8 + (float)rnd.NextDouble() * 68) * k, y = oy + (10 + (float)rnd.NextDouble() * 172) * k, r = 0.35f + (float)rnd.NextDouble() * 0.7f;
+            using (var br = new SolidBrush(Color.FromArgb(rnd.Next(22, 70), 235, 235, 240))) g.FillEllipse(br, x, y, r * 2, r * 2); }
+        for (int i = 0; i < 4; i++) { float x = ox + (10 + (float)rnd.NextDouble() * 60) * k, y = oy + (20 + (float)rnd.NextDouble() * 150) * k, len = (6 + (float)rnd.NextDouble() * 18) * k; double a = rnd.NextDouble() * Math.PI;
+            using (var pen = new Pen(Color.FromArgb(rnd.Next(14, 34), 240, 240, 250), 0.6f)) g.DrawBezier(pen, x, y, x + (float)Math.Cos(a) * len * 0.3f + 1, y + (float)Math.Sin(a) * len * 0.3f, x + (float)Math.Cos(a) * len * 0.7f - 1, y + (float)Math.Sin(a) * len * 0.7f, x + (float)Math.Cos(a) * len, y + (float)Math.Sin(a) * len); }
         // front anode mesh
-        using (var pen = new Pen(Color.FromArgb(85, 26, 22, 20), 0.7f * Math.Max(0.6f, k))) Honeycomb(g, pen, new RectangleF(ox + 10 * k, oy + 44 * k, 64 * k, 136 * k), 4.2f * k);
+        using (var pen = new Pen(Color.FromArgb(20, 20, 17, 15), 0.5f)) Honeycomb(g, pen, new RectangleF(ox + 10 * k, oy + 44 * k, 64 * k, 136 * k), 2.3f * k);
         // vertical specular highlights
         var hl = new RectangleF(ox + 10 * k, oy + 20 * k, 9 * k, 160 * k);
         using (var lg = new LinearGradientBrush(hl, Color.Transparent, Color.Transparent, 0f))
@@ -329,8 +379,14 @@ public static class NixieRender
             return Color.FromArgb(255, Clamp(m * 0.98f), Clamp(m * 1.0f), Clamp(m * 1.07f));
         });
         // warm wall glow behind the tubes + reflections on the polished top edge
-        AddLight(bmp, 233, 200, 215, 120, 255, 100, 25, 0.07f);
-        foreach (var tx in BigX) AddLight(bmp, tx + 42 * BigK, plinthTop + 8, 52, 9, 255, 115, 35, 0.6f);
+        AddLight(bmp, 233, 205, 230, 150, 255, 100, 25, 0.13f);
+        for (int i = 0; i < 4; i++)
+        {
+            float tx = BigX[i] + 42 * BigK, b = Bright[i];
+            AddLight(bmp, tx, BigY + 120 * BigK, 78, 150, 255, 96, 22, 0.10f * b);          // halo on the wall behind each tube
+            AddLight(bmp, tx, plinthTop + 8, 56, 10, 255, 118, 38, 0.72f * b);                // polished top edge
+            AddLight(bmp, tx, plinthFront + 4, 46, 46, 255, 104, 30, 0.20f * b);              // spill down the brushed front
+        }
         using (var g = Graphics.FromImage(bmp))
         {
             g.SmoothingMode = SmoothingMode.AntiAlias; g.PixelOffsetMode = PixelOffsetMode.HighQuality;
@@ -341,7 +397,7 @@ public static class NixieRender
             // hex socket bolts on the front plate
             foreach (var bxy in new[] { new PointF(118, 396), new PointF(348, 396) }) Bolt(g, bxy.X, bxy.Y, 5);
             // big tubes
-            for (int i = 0; i < 4; i++) TubeBack(g, BigX[i], BigY, BigK, true);
+            for (int i = 0; i < 4; i++) TubeBack(g, BigX[i], BigY, BigK, true, i);
             // colon bulbs (INS-1 style)
             foreach (var cy in ColonY)
             {
@@ -358,6 +414,31 @@ public static class NixieRender
                 using (var pen = new Pen(Color.FromArgb(200, 120, 120, 126), 2f)) { g.DrawLine(pen, bx - 6, BarY + BarH / 2f, bx - 4, BarY + BarH / 2f); g.DrawLine(pen, bx + BarW + 4, BarY + BarH / 2f, bx + BarW + 6, BarY + BarH / 2f); }
             }
         }
+        // glow from the discharge on the socket rings and the lower glass
+        for (int i = 0; i < 4; i++) AddLight(bmp, BigX[i] + 42 * BigK, BigY + 184 * BigK, 40 * BigK, 13, 255, 110, 34, 0.26f * Bright[i]);
+        return bmp;
+    }
+
+    // warm-up cover frames: black shapes over the glass interiors, each tube flickering on its own, ending fully clear
+    public const int WarmX = 20, WarmY = 80, WarmW = 426, WarmH = 256, WarmN = 14;
+    static readonly float[][] Warm = {
+        new float[]{1, 1, .30f, 1, .60f, .20f, .50f, .10f, 0, .15f, 0, 0, 0, 0},
+        new float[]{1, 1, 1, .40f, 1, .70f, .20f, .60f, .15f, .30f, .05f, 0, 0, 0},
+        new float[]{1, .50f, 1, 1, .30f, .80f, .30f, .10f, .40f, 0, .10f, 0, 0, 0},
+        new float[]{1, 1, 1, 1, .50f, 1, .40f, .70f, .20f, .40f, .10f, .20f, 0, 0},
+    };
+    public static Bitmap WarmFrame(int n)
+    {
+        var bmp = new Bitmap(WarmW, WarmH, PixelFormat.Format32bppArgb);
+        using (var g = Graphics.FromImage(bmp))
+        {
+            g.SmoothingMode = SmoothingMode.AntiAlias; g.Clear(Color.Transparent);
+            for (int i = 0; i < 4; i++)
+            {
+                int a = (int)(238 * Warm[i][n]); if (a <= 0) continue;
+                using (var br = new SolidBrush(Color.FromArgb(a, 4, 3, 3))) g.FillPath(br, Glass(BigX[i] - WarmX, BigY - WarmY, BigK));
+            }
+        }
         return bmp;
     }
 
@@ -367,7 +448,7 @@ public static class NixieRender
         using (var g = Graphics.FromImage(bmp))
         {
             g.SmoothingMode = SmoothingMode.AntiAlias; g.PixelOffsetMode = PixelOffsetMode.HighQuality; g.Clear(Color.Transparent);
-            for (int i = 0; i < 4; i++) TubeFront(g, BigX[i], BigY, BigK);
+            for (int i = 0; i < 4; i++) TubeFront(g, BigX[i], BigY, BigK, i);
             foreach (var cy in ColonY)
             {
                 using (var pen = new Pen(Color.FromArgb(80, 230, 230, 240), 0.9f)) g.DrawEllipse(pen, 227, cy - 11, 12, 20);
@@ -411,6 +492,7 @@ public static class NixieRender
             LitDigit(c, BigK).Save(System.IO.Path.Combine(outDir, "nx_d" + c + ".png"), ImageFormat.Png);
             AmbientDigit(c, BigK).Save(System.IO.Path.Combine(outDir, "nx_a" + c + ".png"), ImageFormat.Png);
         }
+        for (int n = 0; n < WarmN; n++) WarmFrame(n).Save(System.IO.Path.Combine(outDir, "nx_w" + n.ToString("00") + ".png"), ImageFormat.Png);
         BulbLit().Save(System.IO.Path.Combine(outDir, "nx_bulb.png"), ImageFormat.Png);
         BarLit().Save(System.IO.Path.Combine(outDir, "nx_bar.png"), ImageFormat.Png);
     }
