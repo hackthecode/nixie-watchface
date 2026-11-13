@@ -1,1 +1,1 @@
-<resources><string name="app_name">Nixie</string></resources>
+<resources><string name="app_name">Nixie</string><string name="cfg_base">Base</string><string name="base_metal">Gunmetal</string><string name="base_walnut">Walnut</string><string name="base_mahogany">Mahogany</string><string name="cfg_gas">Glow</string><string name="gas_orange">Neon orange</string><string name="gas_red">Deep red</string><string name="gas_amber">Amber</string></resources>

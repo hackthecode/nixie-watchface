@@ -10,10 +10,15 @@ A nixie tube clock for round Wear OS watches (built for the OnePlus Watch 3, 466
 - Each digit glows at its own depth in the cathode stack, as a sheath of light around a darker metal core, and lights the cathodes, mica discs and rods next to it
 - Hot core, orange halo and a faint violet haze that spills through the glass; the lit digit reflects in the curved walls and onto the base
 - Tubes drawn as cylinders seen slightly from above: dark thick walls, a cage whose cells bunch up toward the sides, elliptical collars and discs, contact shadows
-- Tilt parallax: the far cage, the near cage and the reflections on the glass slide against the digits as the wrist rolls (accelerometer)
-- Tubes warm up with a short flicker each time the watch wakes, and the outgoing digit ghosts for a second when the minute changes
+- Tilt parallax: the far cage, the near cage and the reflections on the glass slide against the digits as the wrist rolls (accelerometer), on both axes
+- Tubes warm up each time the watch wakes: the glow spreads over the cathodes in patches, each tube at its own pace
+- The outgoing digit ghosts for a second when the minute changes
+- On the hour every cathode is lit in turn for 2.5 s, the anti-poisoning routine of real nixie clocks
+- Tap the tubes to see the date (DD:MM) for three seconds
+- Two bar-graph tubes on the base: battery and steps toward the daily goal
+- Customisable: gunmetal, walnut or mahogany base; neon orange, deep red or amber glow
 - No two tubes are alike: brightness, glass tone, dust and scratches differ per tube
-- Neon colon bulbs, battery bar and percentage on the base
+- Neon colon bulbs
 - Dimmed always-on (ambient) mode: digits only
 
 ## How it is built

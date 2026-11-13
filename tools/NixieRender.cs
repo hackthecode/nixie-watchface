@@ -17,6 +17,9 @@ public static class NixieRender
     public const float BigY = 86, BigK = 1.24f;
     // old tubes never match: relative brightness of each one (also used for the digit alpha in the XML)
     public static readonly float[] Bright = { 1.00f, 0.92f, 0.97f, 0.88f };
+    // gas mix: multipliers on the green and blue of the glow (1,1 = classic neon orange)
+    public static float GasG = 1, GasB = 1;
+    public static readonly int[] BarXs = { 72, 274 };   // battery tube, steps tube
     public const int BarW = 120, BarH = 14, BarX = 233 - BarW / 2, BarY = 382;
     public static readonly float[] ColonY = { 196, 254 };
     const float PlinthTop = BigY + 212 * BigK, PlinthFront = PlinthTop + 16;
@@ -86,7 +89,7 @@ public static class NixieRender
             int i = y * w + x;
             float f = 1;
             if (edgeFade > 0) { float ex = Math.Min(x, w - 1 - x) / edgeFade, ey = Math.Min(y, h - 1 - y) / edgeFade; f = Smooth(Math.Min(1, Math.Min(ex, ey))); }
-            float r = Math.Min(1, R[i]) * f, g = Math.Min(1, G[i]) * f, b = Math.Min(1, B[i]) * f;
+            float r = Math.Min(1, R[i]) * f, g = Math.Min(1, G[i] * GasG) * f, b = Math.Min(1, B[i] * GasB) * f;
             float a = Math.Max(r, Math.Max(g, b));
             if (a > 0.002f) { buf[i * 4 + 2] = (byte)(255 * r / a); buf[i * 4 + 1] = (byte)(255 * g / a); buf[i * 4 + 0] = (byte)(255 * b / a); buf[i * 4 + 3] = (byte)(255 * a); }
         }
@@ -433,7 +436,7 @@ public static class NixieRender
     }
 
     // ------------------------------------------------------------ full scenes
-    public static Bitmap Background()
+    public static Bitmap Background(int style = 0)
     {
         var bmp = new Bitmap(S, S, PixelFormat.Format32bppArgb);
         const float plinthTop = PlinthTop, plinthFront = PlinthFront;
@@ -451,6 +454,14 @@ public static class NixieRender
             float grain = Hash(x, y) * 0.08f;
             float shade = y < plinthFront ? 1.55f - (y - plinthTop) / (plinthFront - plinthTop) * 0.25f : Math.Max(0, 0.75f - (y - plinthFront) / 70f * 0.75f);
             shade *= 0.35f + 0.65f * vig;
+            if (style > 0)
+            {
+                // wood: long wavy growth rings along the plate, fine pores across them
+                float ring = Fbm(x * 0.006f, y * 0.09f); float wave = (float)Math.Sin(y * 0.55f + ring * 26f + Fbm(x * 0.02f, y * 0.02f) * 6f) * 0.5f + 0.5f;
+                float pore = Fbm(x * 0.9f, y * 0.12f);
+                float wv = (0.50f + 0.34f * wave + 0.30f * pore) * (1 + grain) * Math.Min(1.25f, shade * 1.25f + 0.10f);
+                return style == 1 ? Color.FromArgb(255, Clamp(96 * wv), Clamp(58 * wv), Clamp(31 * wv)) : Color.FromArgb(255, Clamp(124 * wv), Clamp(44 * wv), Clamp(26 * wv));
+            }
             float m = (16 + 22 * brush) * (1 + grain) * shade;
             return Color.FromArgb(255, Clamp(m * 0.98f), Clamp(m * 1.0f), Clamp(m * 1.07f));
         });
@@ -472,7 +483,9 @@ public static class NixieRender
             using (var pen = new Pen(Color.FromArgb(200, 0, 0, 0), 2f)) g.DrawLine(pen, 0, plinthFront, S, plinthFront);
             using (var pen = new Pen(Color.FromArgb(110, 190, 195, 205), 1f)) g.DrawLine(pen, 0, plinthFront + 1.5f, S, plinthFront + 1.5f);
             // hex socket bolts on the front plate
-            foreach (var bxy in new[] { new PointF(118, 396), new PointF(348, 396) }) Bolt(g, bxy.X, bxy.Y, 5);
+            if (style == 0) Bolt(g, 233, 390, 5);
+            else { var plate = new RectangleF(203, 380, 60, 19); Brass(g, plate, 3); Engrave(g, "NIXIE", plate, 12); Screw(g, 208, 389.5f, 1.8f, 30); Screw(g, 258, 389.5f, 1.8f, 110); }
+            EngraveMetal(g, "BATTERY", new RectangleF(BarXs[0], 366, BarW, 13), 10); EngraveMetal(g, "STEPS", new RectangleF(BarXs[1], 366, BarW, 13), 10);
             // big tubes
             for (int i = 0; i < 4; i++) TubeShell(g, BigX[i], BigY, BigK, i);
             // colon bulbs (INS-1 style)
@@ -483,8 +496,8 @@ public static class NixieRender
                 using (var br = new SolidBrush(Color.FromArgb(120, 120, 95, 75))) g.FillEllipse(br, 230.5f, cy - 3, 5, 5);
             }
             // IN-13 style bar graph tube for the battery, centred under the clock
+            foreach (int bx in BarXs)
             {
-                int bx = BarX;
                 var gr = new RectangleF(bx - 4, BarY - 3, BarW + 8, BarH + 6);
                 using (var br = new SolidBrush(Color.FromArgb(255, 10, 9, 9))) g.FillPath(br, RoundRect(gr, 10));
                 using (var pen = new Pen(Color.FromArgb(70, 150, 120, 95), 0.8f)) g.DrawLine(pen, bx + 2, BarY + BarH / 2f, bx + BarW - 2, BarY + BarH / 2f);
@@ -497,6 +510,7 @@ public static class NixieRender
     }
 
     // warm-up cover frames: black shapes over the glass interiors, each tube flickering on its own, ending fully clear
+    public const int BaseY = 340;
     public const int WarmX = 20, WarmY = 80, WarmW = 426, WarmH = 256, WarmN = 14;
     static readonly float[][] Warm = {
         new float[]{1, 1, .30f, 1, .60f, .20f, .50f, .10f, 0, .15f, 0, 0, 0, 0},
@@ -507,17 +521,53 @@ public static class NixieRender
     public static Bitmap WarmFrame(int n)
     {
         var bmp = new Bitmap(WarmW, WarmH, PixelFormat.Format32bppArgb);
+        var buf = new byte[WarmW * WarmH * 4];
+        for (int i = 0; i < 4; i++)
+        {
+            float d = Warm[i][n]; if (d <= 0) continue; int tube = i;
+            var gm = MaskOf(WarmW, WarmH, g => g.FillPath(Brushes.White, Glass(BigX[tube] - WarmX, BigY - WarmY, BigK)));
+            for (int y = 0; y < WarmH; y++) for (int x = 0; x < WarmW; x++)
+            {
+                float m = gm[y * WarmW + x]; if (m <= 0) continue;
+                float thr = 0.15f + 0.85f * Fbm(x * 0.045f + i * 9.1f, y * 0.03f + n * 0.21f);   // patches drift a little from frame to frame
+                float a = Smooth((d * 1.45f - thr) / 0.22f) * m * 0.94f;
+                int p = (y * WarmW + x) * 4; if (a * 255 <= buf[p + 3]) continue;
+                buf[p + 2] = 13; buf[p + 1] = 4; buf[p] = 1; buf[p + 3] = (byte)(255 * a);
+            }
+        }
+        var bd = bmp.LockBits(new Rectangle(0, 0, WarmW, WarmH), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
+        Marshal.Copy(buf, 0, bd.Scan0, buf.Length); bmp.UnlockBits(bd); return bmp;
+    }
+
+    // tube interiors without a lit digit, cropped to the glass: the backdrop for the date view
+    public static Bitmap Cover()
+    {
+        var bmp = new Bitmap(WarmW, WarmH, PixelFormat.Format32bppArgb);
         using (var g = Graphics.FromImage(bmp))
         {
-            g.SmoothingMode = SmoothingMode.AntiAlias; g.Clear(Color.Transparent);
+            g.SmoothingMode = SmoothingMode.AntiAlias; g.PixelOffsetMode = PixelOffsetMode.HighQuality; g.Clear(Color.Transparent);
+            g.TranslateTransform(-WarmX, -WarmY);
             for (int i = 0; i < 4; i++)
             {
-                int a = (int)(238 * Warm[i][n]); if (a <= 0) continue;
-                using (var br = new SolidBrush(Color.FromArgb(a, 4, 3, 3))) g.FillPath(br, Glass(BigX[i] - WarmX, BigY - WarmY, BigK));
+                var st = g.Save(); g.SetClip(Glass(BigX[i], BigY, BigK));
+                TubeShell(g, BigX[i], BigY, BigK, i); g.Restore(st);
+                TubeMeshBack(g, BigX[i], BigY, BigK); TubeInner(g, BigX[i], BigY, BigK, i);
             }
         }
         return bmp;
     }
+    // glass-shaped mask (any colour, the alpha is what counts)
+    public static Bitmap GlassMask(int alpha)
+    {
+        var bmp = new Bitmap(WarmW, WarmH, PixelFormat.Format32bppArgb);
+        using (var g = Graphics.FromImage(bmp))
+        {
+            g.SmoothingMode = SmoothingMode.AntiAlias; g.Clear(Color.Transparent);
+            using (var br = new SolidBrush(Color.FromArgb(alpha, 255, 255, 255))) for (int i = 0; i < 4; i++) g.FillPath(br, Glass(BigX[i] - WarmX, BigY - WarmY, BigK));
+        }
+        return bmp;
+    }
+    static Bitmap Flat(int alpha) { var b = new Bitmap(8, 8, PixelFormat.Format32bppArgb); using (var g = Graphics.FromImage(b)) g.Clear(Color.FromArgb(alpha, 255, 255, 255)); return b; }
 
     static Bitmap Layer(Action<Graphics> draw)
     {
@@ -542,8 +592,8 @@ public static class NixieRender
                 using (var pen = new Pen(Color.FromArgb(80, 230, 230, 240), 0.9f)) g.DrawEllipse(pen, 227, cy - 11, 12, 20);
                 using (var br = new SolidBrush(Color.FromArgb(120, 255, 255, 255))) g.FillEllipse(br, 229, cy - 8, 2.5f, 6);
             }
+            foreach (int bx in BarXs)
             {
-                int bx = BarX;
                 var gr = new RectangleF(bx - 4, BarY - 3, BarW + 8, BarH + 6);
                 using (var pen = new Pen(Color.FromArgb(80, 220, 225, 235), 1f)) g.DrawPath(pen, RoundRect(gr, 10));
                 using (var pen = new Pen(Color.FromArgb(70, 255, 255, 255), 1.4f)) g.DrawLine(pen, bx + 4, BarY - 0.5f, bx + BarW - 4, BarY - 0.5f);
@@ -573,19 +623,29 @@ public static class NixieRender
 
     public static void RenderAll(string outDir)
     {
-        Background().Save(System.IO.Path.Combine(outDir, "nx_bg.png"), ImageFormat.Png);
-        Overlay().Save(System.IO.Path.Combine(outDir, "nx_front.png"), ImageFormat.Png);
-        BackMesh().Save(System.IO.Path.Combine(outDir, "nx_back.png"), ImageFormat.Png);
-        Inner().Save(System.IO.Path.Combine(outDir, "nx_inner.png"), ImageFormat.Png);
-        FrontMesh().Save(System.IO.Path.Combine(outDir, "nx_mesh.png"), ImageFormat.Png);
-        Highlights().Save(System.IO.Path.Combine(outDir, "nx_hl.png"), ImageFormat.Png);
-        for (char c = '0'; c <= '9'; c++)
+        Func<string, string> P = n => System.IO.Path.Combine(outDir, n + ".png");
+        Background(0).Save(P("nx_bg"), ImageFormat.Png);
+        // wooden bases replace only the strip from just above the plinth down
+        for (int s = 1; s <= 2; s++) using (var full = Background(s)) using (var strip = full.Clone(new Rectangle(0, BaseY, S, S - BaseY), PixelFormat.Format32bppArgb)) strip.Save(P("nx_base" + s), ImageFormat.Png);
+        Overlay().Save(P("nx_front"), ImageFormat.Png);
+        BackMesh().Save(P("nx_back"), ImageFormat.Png);
+        Inner().Save(P("nx_inner"), ImageFormat.Png);
+        FrontMesh().Save(P("nx_mesh"), ImageFormat.Png);
+        Highlights().Save(P("nx_hl"), ImageFormat.Png);
+        Cover().Save(P("nx_cover"), ImageFormat.Png);
+        GlassMask(255).Save(P("nx_mk"), ImageFormat.Png);
+        Flat(255).Save(P("nx_on"), ImageFormat.Png); Flat(0).Save(P("nx_off"), ImageFormat.Png);
+        // d = classic neon orange, r = redder, y = amber
+        var gases = new[] { new object[] { "d", 1f, 1f }, new object[] { "r", 0.64f, 0.75f }, new object[] { "y", 1.30f, 1.35f } };
+        foreach (var gs in gases)
         {
-            LitDigit(c, BigK).Save(System.IO.Path.Combine(outDir, "nx_d" + c + ".png"), ImageFormat.Png);
-            AmbientDigit(c, BigK).Save(System.IO.Path.Combine(outDir, "nx_a" + c + ".png"), ImageFormat.Png);
+            GasG = (float)gs[1]; GasB = (float)gs[2];
+            for (char c = '0'; c <= '9'; c++) LitDigit(c, BigK).Save(P("nx_" + gs[0] + c), ImageFormat.Png);
         }
-        for (int n = 0; n < WarmN; n++) WarmFrame(n).Save(System.IO.Path.Combine(outDir, "nx_w" + n.ToString("00") + ".png"), ImageFormat.Png);
-        BulbLit().Save(System.IO.Path.Combine(outDir, "nx_bulb.png"), ImageFormat.Png);
-        BarLit().Save(System.IO.Path.Combine(outDir, "nx_bar.png"), ImageFormat.Png);
+        GasG = 1; GasB = 1;
+        for (char c = '0'; c <= '9'; c++) AmbientDigit(c, BigK).Save(P("nx_a" + c), ImageFormat.Png);
+        for (int n = 0; n < WarmN; n++) WarmFrame(n).Save(P("nx_w" + n.ToString("00")), ImageFormat.Png);
+        BulbLit().Save(P("nx_bulb"), ImageFormat.Png);
+        BarLit().Save(P("nx_bar"), ImageFormat.Png);
     }
 }
