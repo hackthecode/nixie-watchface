@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- NIXIE: photoreal IN-14 style nixie tube clock, Watch Face Format v2, 466x466 -->
+<WatchFace width="466" height="466">
+  <Metadata key="CLOCK_TYPE" value="DIGITAL"/>
+  <Metadata key="PREVIEW_TIME" value="18:42:00"/>
+  <Scene backgroundColor="#ff000000">
+
+    <PartImage name="bg" x="0" y="0" width="466" height="466" alpha="255">
+      <Variant mode="AMBIENT" target="alpha" value="0"/>
+      <Image resource="nx_bg"/>
+    </PartImage>
+
+    <!-- hours + minutes: lit cathodes with full glow (interactive only) -->
+    <Group name="bigDigits" x="0" y="0" width="466" height="466" alpha="255">
+      <Variant mode="AMBIENT" target="alpha" value="0"/>
+      <PartImage x="25" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(floor(([IS_24_HOUR_MODE] ? [HOUR_0_23] : [HOUR_1_12]) / 10) == 0) ? 255 : 0"/><Image resource="nx_d0"/></PartImage>
+      <PartImage x="25" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(floor(([IS_24_HOUR_MODE] ? [HOUR_0_23] : [HOUR_1_12]) / 10) == 1) ? 255 : 0"/><Image resource="nx_d1"/></PartImage>
+      <PartImage x="25" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(floor(([IS_24_HOUR_MODE] ? [HOUR_0_23] : [HOUR_1_12]) / 10) == 2) ? 255 : 0"/><Image resource="nx_d2"/></PartImage>
+      <PartImage x="25" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(floor(([IS_24_HOUR_MODE] ? [HOUR_0_23] : [HOUR_1_12]) / 10) == 3) ? 255 : 0"/><Image resource="nx_d3"/></PartImage>
+      <PartImage x="25" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(floor(([IS_24_HOUR_MODE] ? [HOUR_0_23] : [HOUR_1_12]) / 10) == 4) ? 255 : 0"/><Image resource="nx_d4"/></PartImage>
+      <PartImage x="25" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(floor(([IS_24_HOUR_MODE] ? [HOUR_0_23] : [HOUR_1_12]) / 10) == 5) ? 255 : 0"/><Image resource="nx_d5"/></PartImage>
+      <PartImage x="25" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(floor(([IS_24_HOUR_MODE] ? [HOUR_0_23] : [HOUR_1_12]) / 10) == 6) ? 255 : 0"/><Image resource="nx_d6"/></PartImage>
+      <PartImage x="25" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(floor(([IS_24_HOUR_MODE] ? [HOUR_0_23] : [HOUR_1_12]) / 10) == 7) ? 255 : 0"/><Image resource="nx_d7"/></PartImage>
+      <PartImage x="25" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(floor(([IS_24_HOUR_MODE] ? [HOUR_0_23] : [HOUR_1_12]) / 10) == 8) ? 255 : 0"/><Image resource="nx_d8"/></PartImage>
+      <PartImage x="25" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(floor(([IS_24_HOUR_MODE] ? [HOUR_0_23] : [HOUR_1_12]) / 10) == 9) ? 255 : 0"/><Image resource="nx_d9"/></PartImage>
+      <PartImage x="123" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="((([IS_24_HOUR_MODE] ? [HOUR_0_23] : [HOUR_1_12]) % 10) == 0) ? 255 : 0"/><Image resource="nx_d0"/></PartImage>
+      <PartImage x="123" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="((([IS_24_HOUR_MODE] ? [HOUR_0_23] : [HOUR_1_12]) % 10) == 1) ? 255 : 0"/><Image resource="nx_d1"/></PartImage>
+      <PartImage x="123" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="((([IS_24_HOUR_MODE] ? [HOUR_0_23] : [HOUR_1_12]) % 10) == 2) ? 255 : 0"/><Image resource="nx_d2"/></PartImage>
+      <PartImage x="123" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="((([IS_24_HOUR_MODE] ? [HOUR_0_23] : [HOUR_1_12]) % 10) == 3) ? 255 : 0"/><Image resource="nx_d3"/></PartImage>
+      <PartImage x="123" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="((([IS_24_HOUR_MODE] ? [HOUR_0_23] : [HOUR_1_12]) % 10) == 4) ? 255 : 0"/><Image resource="nx_d4"/></PartImage>
+      <PartImage x="123" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="((([IS_24_HOUR_MODE] ? [HOUR_0_23] : [HOUR_1_12]) % 10) == 5) ? 255 : 0"/><Image resource="nx_d5"/></PartImage>
+      <PartImage x="123" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="((([IS_24_HOUR_MODE] ? [HOUR_0_23] : [HOUR_1_12]) % 10) == 6) ? 255 : 0"/><Image resource="nx_d6"/></PartImage>
+      <PartImage x="123" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="((([IS_24_HOUR_MODE] ? [HOUR_0_23] : [HOUR_1_12]) % 10) == 7) ? 255 : 0"/><Image resource="nx_d7"/></PartImage>
+      <PartImage x="123" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="((([IS_24_HOUR_MODE] ? [HOUR_0_23] : [HOUR_1_12]) % 10) == 8) ? 255 : 0"/><Image resource="nx_d8"/></PartImage>
+      <PartImage x="123" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="((([IS_24_HOUR_MODE] ? [HOUR_0_23] : [HOUR_1_12]) % 10) == 9) ? 255 : 0"/><Image resource="nx_d9"/></PartImage>
+      <PartImage x="239" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(floor([MINUTE] / 10) == 0) ? 255 : 0"/><Image resource="nx_d0"/></PartImage>
+      <PartImage x="239" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(floor([MINUTE] / 10) == 1) ? 255 : 0"/><Image resource="nx_d1"/></PartImage>
+      <PartImage x="239" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(floor([MINUTE] / 10) == 2) ? 255 : 0"/><Image resource="nx_d2"/></PartImage>
+      <PartImage x="239" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(floor([MINUTE] / 10) == 3) ? 255 : 0"/><Image resource="nx_d3"/></PartImage>
+      <PartImage x="239" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(floor([MINUTE] / 10) == 4) ? 255 : 0"/><Image resource="nx_d4"/></PartImage>
+      <PartImage x="239" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(floor([MINUTE] / 10) == 5) ? 255 : 0"/><Image resource="nx_d5"/></PartImage>
+      <PartImage x="239" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(floor([MINUTE] / 10) == 6) ? 255 : 0"/><Image resource="nx_d6"/></PartImage>
+      <PartImage x="239" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(floor([MINUTE] / 10) == 7) ? 255 : 0"/><Image resource="nx_d7"/></PartImage>
+      <PartImage x="239" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(floor([MINUTE] / 10) == 8) ? 255 : 0"/><Image resource="nx_d8"/></PartImage>
+      <PartImage x="239" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(floor([MINUTE] / 10) == 9) ? 255 : 0"/><Image resource="nx_d9"/></PartImage>
+      <PartImage x="337" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(([MINUTE] % 10) == 0) ? 255 : 0"/><Image resource="nx_d0"/></PartImage>
+      <PartImage x="337" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(([MINUTE] % 10) == 1) ? 255 : 0"/><Image resource="nx_d1"/></PartImage>
+      <PartImage x="337" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(([MINUTE] % 10) == 2) ? 255 : 0"/><Image resource="nx_d2"/></PartImage>
+      <PartImage x="337" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(([MINUTE] % 10) == 3) ? 255 : 0"/><Image resource="nx_d3"/></PartImage>
+      <PartImage x="337" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(([MINUTE] % 10) == 4) ? 255 : 0"/><Image resource="nx_d4"/></PartImage>
+      <PartImage x="337" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(([MINUTE] % 10) == 5) ? 255 : 0"/><Image resource="nx_d5"/></PartImage>
+      <PartImage x="337" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(([MINUTE] % 10) == 6) ? 255 : 0"/><Image resource="nx_d6"/></PartImage>
+      <PartImage x="337" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(([MINUTE] % 10) == 7) ? 255 : 0"/><Image resource="nx_d7"/></PartImage>
+      <PartImage x="337" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(([MINUTE] % 10) == 8) ? 255 : 0"/><Image resource="nx_d8"/></PartImage>
+      <PartImage x="337" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(([MINUTE] % 10) == 9) ? 255 : 0"/><Image resource="nx_d9"/></PartImage>
+    </Group>
+
+    <!-- always-on: thin dim wire outlines only, no tubes/glow (minimal lit OLED pixels) -->
+    <Group name="ambientDigits" x="0" y="0" width="466" height="466" alpha="0">
+      <Variant mode="AMBIENT" target="alpha" value="170"/>
+      <PartImage x="25" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(floor(([IS_24_HOUR_MODE] ? [HOUR_0_23] : [HOUR_1_12]) / 10) == 0) ? 255 : 0"/><Image resource="nx_a0"/></PartImage>
+      <PartImage x="25" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(floor(([IS_24_HOUR_MODE] ? [HOUR_0_23] : [HOUR_1_12]) / 10) == 1) ? 255 : 0"/><Image resource="nx_a1"/></PartImage>
+      <PartImage x="25" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(floor(([IS_24_HOUR_MODE] ? [HOUR_0_23] : [HOUR_1_12]) / 10) == 2) ? 255 : 0"/><Image resource="nx_a2"/></PartImage>
+      <PartImage x="25" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(floor(([IS_24_HOUR_MODE] ? [HOUR_0_23] : [HOUR_1_12]) / 10) == 3) ? 255 : 0"/><Image resource="nx_a3"/></PartImage>
+      <PartImage x="25" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(floor(([IS_24_HOUR_MODE] ? [HOUR_0_23] : [HOUR_1_12]) / 10) == 4) ? 255 : 0"/><Image resource="nx_a4"/></PartImage>
+      <PartImage x="25" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(floor(([IS_24_HOUR_MODE] ? [HOUR_0_23] : [HOUR_1_12]) / 10) == 5) ? 255 : 0"/><Image resource="nx_a5"/></PartImage>
+      <PartImage x="25" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(floor(([IS_24_HOUR_MODE] ? [HOUR_0_23] : [HOUR_1_12]) / 10) == 6) ? 255 : 0"/><Image resource="nx_a6"/></PartImage>
+      <PartImage x="25" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(floor(([IS_24_HOUR_MODE] ? [HOUR_0_23] : [HOUR_1_12]) / 10) == 7) ? 255 : 0"/><Image resource="nx_a7"/></PartImage>
+      <PartImage x="25" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(floor(([IS_24_HOUR_MODE] ? [HOUR_0_23] : [HOUR_1_12]) / 10) == 8) ? 255 : 0"/><Image resource="nx_a8"/></PartImage>
+      <PartImage x="25" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(floor(([IS_24_HOUR_MODE] ? [HOUR_0_23] : [HOUR_1_12]) / 10) == 9) ? 255 : 0"/><Image resource="nx_a9"/></PartImage>
+      <PartImage x="123" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="((([IS_24_HOUR_MODE] ? [HOUR_0_23] : [HOUR_1_12]) % 10) == 0) ? 255 : 0"/><Image resource="nx_a0"/></PartImage>
+      <PartImage x="123" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="((([IS_24_HOUR_MODE] ? [HOUR_0_23] : [HOUR_1_12]) % 10) == 1) ? 255 : 0"/><Image resource="nx_a1"/></PartImage>
+      <PartImage x="123" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="((([IS_24_HOUR_MODE] ? [HOUR_0_23] : [HOUR_1_12]) % 10) == 2) ? 255 : 0"/><Image resource="nx_a2"/></PartImage>
+      <PartImage x="123" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="((([IS_24_HOUR_MODE] ? [HOUR_0_23] : [HOUR_1_12]) % 10) == 3) ? 255 : 0"/><Image resource="nx_a3"/></PartImage>
+      <PartImage x="123" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="((([IS_24_HOUR_MODE] ? [HOUR_0_23] : [HOUR_1_12]) % 10) == 4) ? 255 : 0"/><Image resource="nx_a4"/></PartImage>
+      <PartImage x="123" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="((([IS_24_HOUR_MODE] ? [HOUR_0_23] : [HOUR_1_12]) % 10) == 5) ? 255 : 0"/><Image resource="nx_a5"/></PartImage>
+      <PartImage x="123" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="((([IS_24_HOUR_MODE] ? [HOUR_0_23] : [HOUR_1_12]) % 10) == 6) ? 255 : 0"/><Image resource="nx_a6"/></PartImage>
+      <PartImage x="123" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="((([IS_24_HOUR_MODE] ? [HOUR_0_23] : [HOUR_1_12]) % 10) == 7) ? 255 : 0"/><Image resource="nx_a7"/></PartImage>
+      <PartImage x="123" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="((([IS_24_HOUR_MODE] ? [HOUR_0_23] : [HOUR_1_12]) % 10) == 8) ? 255 : 0"/><Image resource="nx_a8"/></PartImage>
+      <PartImage x="123" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="((([IS_24_HOUR_MODE] ? [HOUR_0_23] : [HOUR_1_12]) % 10) == 9) ? 255 : 0"/><Image resource="nx_a9"/></PartImage>
+      <PartImage x="239" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(floor([MINUTE] / 10) == 0) ? 255 : 0"/><Image resource="nx_a0"/></PartImage>
+      <PartImage x="239" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(floor([MINUTE] / 10) == 1) ? 255 : 0"/><Image resource="nx_a1"/></PartImage>
+      <PartImage x="239" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(floor([MINUTE] / 10) == 2) ? 255 : 0"/><Image resource="nx_a2"/></PartImage>
+      <PartImage x="239" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(floor([MINUTE] / 10) == 3) ? 255 : 0"/><Image resource="nx_a3"/></PartImage>
+      <PartImage x="239" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(floor([MINUTE] / 10) == 4) ? 255 : 0"/><Image resource="nx_a4"/></PartImage>
+      <PartImage x="239" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(floor([MINUTE] / 10) == 5) ? 255 : 0"/><Image resource="nx_a5"/></PartImage>
+      <PartImage x="239" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(floor([MINUTE] / 10) == 6) ? 255 : 0"/><Image resource="nx_a6"/></PartImage>
+      <PartImage x="239" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(floor([MINUTE] / 10) == 7) ? 255 : 0"/><Image resource="nx_a7"/></PartImage>
+      <PartImage x="239" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(floor([MINUTE] / 10) == 8) ? 255 : 0"/><Image resource="nx_a8"/></PartImage>
+      <PartImage x="239" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(floor([MINUTE] / 10) == 9) ? 255 : 0"/><Image resource="nx_a9"/></PartImage>
+      <PartImage x="337" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(([MINUTE] % 10) == 0) ? 255 : 0"/><Image resource="nx_a0"/></PartImage>
+      <PartImage x="337" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(([MINUTE] % 10) == 1) ? 255 : 0"/><Image resource="nx_a1"/></PartImage>
+      <PartImage x="337" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(([MINUTE] % 10) == 2) ? 255 : 0"/><Image resource="nx_a2"/></PartImage>
+      <PartImage x="337" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(([MINUTE] % 10) == 3) ? 255 : 0"/><Image resource="nx_a3"/></PartImage>
+      <PartImage x="337" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(([MINUTE] % 10) == 4) ? 255 : 0"/><Image resource="nx_a4"/></PartImage>
+      <PartImage x="337" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(([MINUTE] % 10) == 5) ? 255 : 0"/><Image resource="nx_a5"/></PartImage>
+      <PartImage x="337" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(([MINUTE] % 10) == 6) ? 255 : 0"/><Image resource="nx_a6"/></PartImage>
+      <PartImage x="337" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(([MINUTE] % 10) == 7) ? 255 : 0"/><Image resource="nx_a7"/></PartImage>
+      <PartImage x="337" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(([MINUTE] % 10) == 8) ? 255 : 0"/><Image resource="nx_a8"/></PartImage>
+      <PartImage x="337" y="86" width="105" height="244" alpha="0"><Transform target="alpha" value="(([MINUTE] % 10) == 9) ? 255 : 0"/><Image resource="nx_a9"/></PartImage>
+    </Group>
+
+    <!-- colon neon bulbs (steady: no per-second redraw) -->
+    <Group name="colon" x="0" y="0" width="466" height="466" alpha="255">
+      <Variant mode="AMBIENT" target="alpha" value="0"/>
+      <PartImage x="216" y="176" width="34" height="40" alpha="255"><Image resource="nx_bulb"/></PartImage>
+      <PartImage x="216" y="234" width="34" height="40" alpha="255"><Image resource="nx_bulb"/></PartImage>
+    </Group>
+
+    <!-- bar-graph tube: battery -->
+    <Group name="bars" x="0" y="0" width="466" height="466" alpha="255">
+      <Variant mode="AMBIENT" target="alpha" value="0"/>
+      <Group name="batBar" x="173" y="382" width="120" height="14">
+        <PartDraw x="0" y="0" width="120" height="14" renderMode="MASK">
+          <Rectangle x="0" y="0" width="120" height="14"><Transform target="width" value="1.2 * clamp([BATTERY_PERCENT], 1, 100)"/><Fill color="#ffffffff"/></Rectangle>
+        </PartDraw>
+        <PartImage x="0" y="0" width="120" height="14" renderMode="SOURCE"><Image resource="nx_bar"/></PartImage>
+      </Group>
+    </Group>
+
+    <!-- glass, front mesh, highlights -->
+    <PartImage name="front" x="0" y="0" width="466" height="466" alpha="255">
+      <Variant mode="AMBIENT" target="alpha" value="0"/>
+      <Image resource="nx_front"/>
+    </PartImage>
+
+    <!-- battery percent engraved into the metal under the bar tube -->
+    <Group name="engraved" x="0" y="0" width="466" height="466" alpha="255">
+      <Variant mode="AMBIENT" target="alpha" value="0"/>
+      <PartText x="173" y="401" width="120" height="24">
+        <Text align="CENTER"><Font family="oswald" size="17" color="#e6000000"><Template>%s%%<Parameter expression="[BATTERY_PERCENT]"/></Template></Font></Text>
+      </PartText>
+      <PartText x="173" y="402" width="120" height="24">
+        <Text align="CENTER"><Font family="oswald" size="17" color="#c8a8aeba"><Template>%s%%<Parameter expression="[BATTERY_PERCENT]"/></Template></Font></Text>
+      </PartText>
+    </Group>
+
+  </Scene>
+</WatchFace>

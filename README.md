@@ -1,0 +1,42 @@
+# Nixie — watch face for Wear OS
+
+A nixie tube clock for round Wear OS watches (built for the OnePlus Watch 3, 466×466). Four IN-14 style tubes with glowing wire digits, the unlit cathode stack visible behind them, a hex mesh in front, and a neon battery gauge on the base.
+
+<p align="center"><img src="res/drawable/preview.png" width="360" alt="Nixie watch face"></p>
+
+## Features
+
+- Hours and minutes on four tubes, following the 12/24 h system setting
+- Neon colon bulbs
+- Battery bar and percentage on the base
+- Dimmed always-on (ambient) mode: digits only
+
+## How it is built
+
+Pure [Watch Face Format v2](https://developer.android.com/training/wearables/wff) — the APK contains resources only, no code. Every bitmap is rendered procedurally; there are no photos or stock art.
+
+- `tools/NixieRender.cs` draws the tubes, digits and glow (System.Drawing with a custom blur/erode and layered additive glow). `tools/render.ps1` compiles and runs it into `res/drawable`.
+- `tools/gen-xml.ps1` writes `res/raw/watchface.xml` — one image per digit per tube, switched by an alpha expression.
+- `tools/mock.ps1` composites a test frame locally, without a watch.
+- `build.ps1` builds the APK without Gradle (aapt2 → zipalign → apksigner, debug key).
+
+```powershell
+.\tools\render.ps1              # regenerate bitmaps
+.\tools\gen-xml.ps1             # regenerate watchface.xml
+.\build.ps1                     # build\nixie.apk
+.\build.ps1 -Install            # build + adb install on the connected watch
+```
+
+Requires PowerShell 7, the Android SDK (build-tools 37, platform android-34) and a JDK.
+
+## Install
+
+Grab the APK from [Releases](../../releases) and sideload it:
+
+```
+adb install nixie.apk
+```
+
+Then long-press the current watch face and pick **Nixie**. Needs Wear OS 4 or newer.
+
+Font: Oswald, under the SIL Open Font License.
