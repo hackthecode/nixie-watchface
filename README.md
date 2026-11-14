@@ -4,6 +4,10 @@ A nixie tube clock for round Wear OS watches (built for the OnePlus Watch 3, 466
 
 <p align="center"><img src="res/drawable/preview.png" width="360" alt="Nixie watch face"></p>
 
+<p align="center"><img src="docs/animation.png" width="560" alt="Nixie watch face, animated"></p>
+
+The animation is rendered from the face's own layers.
+
 ## Features
 
 - Hours and minutes on four tubes, following the 12/24 h system setting
